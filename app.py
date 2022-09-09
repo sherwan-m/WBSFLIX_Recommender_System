@@ -34,7 +34,7 @@ movie_df = (
         .assign(year=lambda df_ : np.where(df_['year'].str.len() <=5 , df_['year'], 0)))
 # convert the year column to int
 movie_df['year'] = movie_df['year'].astype(int)
-# movie_df['title']= movie_df['title'].str.replace('\'','')
+movie_df['title']= movie_df['title'].str.replace(r'\'','', regex=True)
 # create a genre list
 genre_list = []
 for i in movie_df['genres']:
@@ -88,15 +88,34 @@ def add_image_link(movies):
         except: movie_page = 'Unknown' # managing error, when ther is no mayor name
         imdb_pic_r = requests.get(imdb_url+movie_page)
         imdb_pic_soup =  BeautifulSoup(imdb_pic_r.content, "html.parser") #convert the response to BeautifulSoup variable
-    #     pic_page=imdb_pic_soup.select("#__next > main > div > section.ipc-page-background.ipc-page-background--base.sc-ca85a21c-0.efoFqn > section > div:nth-child(4) > section > section > div.sc-2a827f80-2.kqTacj > div.sc-2a827f80-3.dhWlsy > div > div.sc-77a2c808-2.mcnrT > div > div > a")[0]['href']
-    #     pic_href_r = requests.get(imdb_url+pic_page)
-    #     pic_href_soup =  BeautifulSoup(pic_href_r.content, "html.parser")
-    #     pic_link = pic_href_soup.select("div.sc-7c0a9e7c-2.bkptFa img")[0]['src']
-    #     cover_pic.append(pic_link)
-    #     imdb_links.append(imdb_url+movie_page)
-    # movies['cover_pic'] = cover_pic
+        try: pic_page=imdb_pic_soup.select("#__next > main > div > section.ipc-page-background.ipc-page-background--base.sc-ca85a21c-0.efoFqn > section > div:nth-child(4) > section > section > div.sc-2a827f80-2.kqTacj > div.sc-2a827f80-3.dhWlsy > div > div.sc-77a2c808-2.mcnrT > div > div > a")[0]['href']
+        except :
+            cover_pic.append('https://i.stack.imgur.com/6M513.png')
+            imdb_links.append('Not Found')
+            continue
+        pic_href_r = requests.get(imdb_url+pic_page)
+        pic_href_soup =  BeautifulSoup(pic_href_r.content, "html.parser")
+        pic_link = pic_href_soup.select("div.sc-7c0a9e7c-2.bkptFa img")[0]['src']
+        cover_pic.append(pic_link)
+        imdb_links.append(imdb_url+movie_page)
+    movies['cover_pic'] = cover_pic
     movies['imdb_link'] = imdb_links
     return movies 
+
+def test(movie = "Toy Story (1995)"):
+    imdb_url = "https://www.imdb.com"
+    imdb_search_url = f"/find?q={movie}"
+    imdb_r = requests.get(imdb_url + imdb_search_url)
+    imdb_soup = BeautifulSoup(imdb_r.content, "html.parser") #convert the response to BeautifulSoup variable
+    try: movie_page = imdb_soup.select("div.article table.findList tr.findResult.odd td.primary_photo a")[0]['href']
+    except: movie_page = 'Unknown' # managing error, when ther is no mayor name
+    imdb_pic_r = requests.get(imdb_url+movie_page)
+    imdb_pic_soup =  BeautifulSoup(imdb_pic_r.content, "html.parser") #convert the response to BeautifulSoup variable
+    pic_page=imdb_pic_soup.select("div.sc-77a2c808-2.mcnrT div div a")#[1]['href']
+    # pic_href_r = requests.get(imdb_url+pic_page)
+    # pic_href_soup =  BeautifulSoup(pic_href_r.content, "html.parser")
+    # pic_link = pic_href_soup.select("div.sc-7c0a9e7c-2.bkptFa img")[0]['src']
+    return pic_page 
 
 # population based
 def popular_top_n(n, genres,time_period):
@@ -117,10 +136,10 @@ def popular_top_n(n, genres,time_period):
     top_n = top_n.loc[lambda df_ : df_['genres'].str.contains(genres_regex)]
     top_n.sort_values('overall_rating', ascending=False)
     top_n = top_n.drop(columns=['rating_mean', 'rating_count', 'overall_rating', 'datetime']).reset_index( drop= True).head(n)
-    # result_size = top_n.shape[0]
-    # new_index = ['movie-{}'.format(i+1) for i in range(result_size)]
-    # top_n.index = new_index
-    # pretty_rec = top_n.style.pipe(make_pretty)
+    result_size = top_n.shape[0]
+    new_index = ['movie-{}'.format(i+1) for i in range(result_size)]
+    top_n.index = new_index
+    pretty_rec = top_n.style.pipe(make_pretty)
     return top_n
 
 # movie/item based
@@ -278,8 +297,9 @@ if pop_based_rec:
     if submit_button_pop:
         popular_movie_recs = popular_top_n(nr_rec, genre, time_period)
         st.table(popular_movie_recs)
-# for image in (add_image_link(popular_movie_recs.reset_index(drop=True))['cover_pic']):
-#     st.image(image, width=300)
+        for index, movie in add_image_link(popular_movie_recs.reset_index(drop=True)).iterrows():
+            st.image(movie['cover_pic'], width=300)
+            st.write(f"[imdb link for: {movie['title']}]({movie['imdb_link']})")
 # to put some space in between options
 st.write("")
 st.write("")
@@ -373,3 +393,5 @@ if user_based_rec:
 
         # st.write(time_period)
         st.table(user_movie_recs)
+
+

@@ -91,7 +91,7 @@ def add_image_link(movies):
         try: pic_page=imdb_pic_soup.select("#__next > main > div > section.ipc-page-background.ipc-page-background--base.sc-ca85a21c-0.efoFqn > section > div:nth-child(4) > section > section > div.sc-2a827f80-2.kqTacj > div.sc-2a827f80-3.dhWlsy > div > div.sc-77a2c808-2.mcnrT > div > div > a")[0]['href']
         except :
             cover_pic.append('https://i.stack.imgur.com/6M513.png')
-            imdb_links.append('Not Found')
+            imdb_links.append(imdb_url+movie_page)
             continue
         pic_href_r = requests.get(imdb_url+pic_page)
         pic_href_soup =  BeautifulSoup(pic_href_r.content, "html.parser")
@@ -125,7 +125,7 @@ def popular_top_n(n, genres,time_period):
             .agg(rating_mean=('rating', 'mean'), rating_count=('movieId', 'count'), datetime=('datetime','mean'))
         #     .sort_values(['rating_mean','rating_count','datetime'], ascending= False)
         #     .loc[lambda df_ :df_['rating_count'] >= (df_['rating_count'].mean()+df_['rating_count'].median())/2]
-            .assign(overall_rating = lambda df_ : (df_['rating_mean']+df_['rating_count'] * 5* 100 / df_['rating_count'].max()) )
+            .assign(overall_rating = lambda df_ : (df_['rating_mean']+df_['rating_count'] * 5* 10 / df_['rating_count'].max()) )
             .sort_values('overall_rating', ascending= False)
             .reset_index(drop= True)
     )
@@ -135,7 +135,7 @@ def popular_top_n(n, genres,time_period):
     genres_regex = transform_genre_to_regex(genres)
     top_n = top_n.loc[lambda df_ : df_['genres'].str.contains(genres_regex)]
     top_n.sort_values('overall_rating', ascending=False)
-    top_n = top_n.drop(columns=['rating_mean', 'rating_count', 'overall_rating', 'datetime']).reset_index( drop= True).head(n)
+    top_n = top_n.drop(columns=['rating_count', 'overall_rating', 'datetime']).reset_index( drop= True).head(n)
     result_size = top_n.shape[0]
     new_index = ['movie-{}'.format(i+1) for i in range(result_size)]
     top_n.index = new_index
